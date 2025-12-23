@@ -51,8 +51,24 @@ Unchecked sections are **not generated or displayed**.
 ## 🚀 Running Locally
 
 ```bash
-git clone https://github.com/your-username/lessonforge.git
-cd lessonforge
+git clone https://github.com/your-username/Curriculum_Kit_Generator.git
+cd Curriculum_Kit_Generator
 pip install -r requirements.txt
 export GROQ_API_KEY="your_api_key"
 streamlit run app.py
+```
+---
+
+## 📌 Use Cases
+
+Teachers & educators
+
+Curriculum designers
+
+EdTech platforms
+
+Schools needing board-aligned lesson plans
+
+## 📄 License
+
+MIT License
