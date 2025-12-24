@@ -26,8 +26,8 @@ def generate_lesson_plans_from_pdf(
     text = extract_text_from_pdf(file_bytes)
     wc = rough_word_count(text)
 
-    num_lessons = override_num_lessons or determine_lesson_count(wc)
-    chunks = split_into_lesson_chunks(text, num_lessons)
+    num_lessons = override_num_lessons or len(topic_names)
+    chunks = split_into_lesson_chunks(text, num_lessons, topic_names)
 
     client = LessonPlanLLMClient()
     lesson_plans = []
