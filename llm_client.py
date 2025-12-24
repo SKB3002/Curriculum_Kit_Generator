@@ -74,10 +74,32 @@ Rules:
         response = self.client.chat.completions.create(
             model=GROQ_MODEL,
             messages=[{"role": "user", "content": prompt}],
-            temperature=0.2,
+            temperature=0.4,
         )
 
-        data = json.loads(response.choices[0].message.content)
+        raw_content = response.choices[0].message.content
 
-        # Hard remove disabled sections
-        return {k: v for k, v in data.items() if k in sections}
+        # -------- SAFE JSON PARSING (ADDED) --------
+        if not raw_content or not raw_content.strip():
+            raise ValueError("LLM returned empty response")
+
+        try:
+            data = json.loads(raw_content)
+        except json.JSONDecodeError:
+            start = raw_content.find("{")
+            end = raw_content.rfind("}")
+            if start == -1 or end == -1:
+                raise ValueError(f"Invalid LLM output:\n{raw_content}")
+            data = json.loads(raw_content[start:end + 1])
+
+        # -------- FILTER ALLOWED SECTIONS (EXISTING LOGIC) --------
+        cleaned = {k: v for k, v in data.items() if k in sections}
+
+        # -------- FORCE SYSTEM-CONTROLLED FIELDS (ADDED) --------
+        cleaned["grade"] = grade
+        cleaned["chapter_name"] = chapter_name
+        cleaned["topic_name"] = topic_name
+        cleaned["page_no"] = page_no
+        cleaned["lesson_plan_no"] = lesson_plan_no
+
+        return cleaned
