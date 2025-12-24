@@ -1,4 +1,4 @@
-# chunking.py
+
 from typing import List
 from config import (
     WORD_COUNT_FOR_4_LESSONS,
