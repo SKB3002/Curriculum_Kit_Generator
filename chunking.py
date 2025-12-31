@@ -1,11 +1,12 @@
 # chunking.py
 from typing import List
 from groq import Groq
+from groq import RateLimitError
 import os
 import json
 
-GROQ_API_KEY = os.getenv("GROQ_API_KEY")
-GROQ_MODEL = os.getenv("GROQ_MODEL", "openai/gpt-oss-safeguard-20b")
+GROQ_API_KEY = "gsk_dWatyTslyvvBKGEozKJRWGdyb3FYvtGicALZRYrYgaDmz553h"
+GROQ_MODEL1 = "meta-llama/llama-guard-4-12b"
 
 
 def split_text_into_paragraphs(text: str) -> List[str]:
@@ -57,12 +58,16 @@ Rules:
 - Do not add new text
 - Output valid JSON only
 """
-
-        response = client.chat.completions.create(
-            model=GROQ_MODEL,
-            messages=[{"role": "user", "content": prompt}],
-            temperature=0.0,
-        )
+     
+        try:
+            response = client.chat.completions.create(
+                model=GROQ_MODEL1,
+                messages=[{"role": "user", "content": prompt}],
+                temperature=0.0,
+            )
+  
+        except RateLimitError:
+            raise RuntimeError("LLM_RATE_LIMIT")
 
         raw = response.choices[0].message.content.strip()
 
