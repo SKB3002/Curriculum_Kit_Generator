@@ -1,4 +1,4 @@
-# Curriculum_Kit_Generator
+# Curriculum_Kit_Generator (apZ)
 
 **AI-powered, teacher-controlled lesson planning — without hallucination**
 
