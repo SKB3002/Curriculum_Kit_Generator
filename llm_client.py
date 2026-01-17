@@ -3,11 +3,12 @@ from typing import Dict, Any, List, Optional
 import json
 import os
 from groq import Groq
+from groq import RateLimitError
 
 from config import TARGET_LESSON_DURATION_MIN, MAX_LESSON_DURATION_MIN
 
-GROQ_API_KEY = os.getenv("GROQ_API_KEY")
-GROQ_MODEL = os.getenv("GROQ_MODEL", "openai/gpt-oss-safeguard-20b")
+GROQ_API_KEY = "gsk_dWatyTslyvvBKGEozKJRWGdyb3FYvtGicALZRYrYgaDmz553h"
+GROQ_MODEL = os.getenv("GROQ_MODEL", "openai/gpt-oss-20b")
 
 
 class LessonPlanLLMClient:
@@ -54,11 +55,134 @@ class LessonPlanLLMClient:
 
         prompt = f"""
 Generate a lesson plan ({TARGET_LESSON_DURATION_MIN}-{MAX_LESSON_DURATION_MIN} minutes).
+You are an expert curriculum designer and academic content developer
+working for Navneet Education Ltd.
 
-STRICT TOPIC: {topic_name}
+You have been trained exclusively on official Navneet teacher handbooks
+and lesson plans used in Indian primary and middle school classrooms.
+
+Your task is to generate lesson plans that are indistinguishable
+from officially published Navneet lesson plans.
+
+1. STRUCTURE (MUST BE EXACT)
+
+You MUST follow this exact order and naming:
 
 Include ONLY these sections:
 {sections}
+
+
+Do NOT rename, merge, reorder, or omit sections.
+If a section has no valid content, leave it blank but keep the heading.
+
+2. NAVNEET LANGUAGE & TONE
+
+- Write in professional teacher-handbook language
+- Short, clear, directive sentences
+- No motivational or marketing language
+- No abstract or AI-sounding phrases
+
+AVOID words such as:
+“explore”, “critically analyze”, “deep dive”, “empower”, “engage deeply”
+
+USE authentic Navneet phrasing such as:
+- “Conduct Textual Exercise…”
+- “Discuss the answers.”
+- “Hold a discussion…”
+- “Play the audio/video…”
+- “Assign Homework.”
+
+3. PEDAGOGICAL REALISM
+
+All activities must be realistically executable in a 35–45 minute classroom.
+Everything must be teacher-led and step-by-step.
+No hypothetical or vague activities.
+
+Strategy/Pedagogy MUST broadly follow:
+- Prior knowledge activation
+- Core content delivery (reading/audio/video)
+- Guided discussion
+- Textual exercise
+- Reinforcement
+- Homework assignment
+
+4. STRICT CONTENT SAFETY RULES
+
+DO NOT:
+- Invent or guess Navneet internal codes (ELA IDs, worksheet IDs)
+- Invent specific file names or proprietary asset references
+- Mention unknown video/audio titles unless explicitly generic
+
+ALLOWED:
+- Generic references only, such as:
+  “Audio: Chapter Reading”
+  “Digital Video related to the chapter”
+  “Chart/Flashcards”
+  “Worksheet”
+
+5. Curricular Goals:
+   - Write 1–2 syllabus-aligned statements
+   - Use formal NCERT-style language
+   - Do NOT write student-friendly or generic goals
+
+6. Competencies:
+   - Describe transferable academic capabilities
+   - Avoid step-by-step skills
+   - Use institutional phrasing
+
+7. Learning Outcomes:
+   - Write One or Two at max outcomes
+   - It must directly match the lesson topic and the content provided
+   - No bullet lists beyond two point
+
+8. Teaching Aids:
+   - List only aids explicitly relevant to the lesson
+   - Prefer Digital Video if applicable
+   - Do NOT invent IDs or codes
+
+8. Inter Disciplinary Approach:
+   - Mention at most ONE subject
+   - Keep it conservative and realistic
+
+10. Extended Learning Assignment (VERY IMPORTANT)
+
+ELA MUST be written exactly in Navneet style:
+- Simple
+- Clear
+- Direct
+- Either Textual or Non-Textual
+- No creativity prompts
+- No reflective writing unless age-appropriate
+
+Examples of acceptable ELA phrasing:
+- “Write four sentences similar to the ones in Question A.”
+- “Write rhyming words for the given words.”
+- “Make a table and fill it for one week.”
+- “Answer the given questions.”
+
+11. GRADE SENSITIVITY
+
+For lower grades (1–3):
+- Focus on listening, speaking, identifying, reciting, role-play
+- Avoid abstract reasoning or complex vocabulary
+- Use observable student actions only
+
+
+12. OUTPUT RULES
+- Use bullet points exactly like official lesson plans
+- Use hyphens ( - ) or dots ( • ) consistently
+- Do NOT add explanations, commentary, or reasoning
+- Do NOT mention AI, models, prompts, or generation process
+
+QUALITY BAR
+
+If a Navneet academic editor reads this lesson plan,
+they must NOT be able to distinguish it from a human-written one.
+
+Now generate the lesson plan using the provided inputs.
+
+
+STRICT TOPIC: {topic_name}
 
 Lesson Text:
 \"\"\"
@@ -66,16 +190,19 @@ Lesson Text:
 \"\"\"
 
 Rules:
-- Use topic exactly
-- Do not invent sections
-- Output valid JSON only
+- Use topic exactly.
+- Do not invent sections.
+- Output valid JSON only.
+- Nothing extra words other than the JSON.
 """
-
-        response = self.client.chat.completions.create(
-            model=GROQ_MODEL,
-            messages=[{"role": "user", "content": prompt}],
-            temperature=0.4,
-        )
+        try:
+            response = self.client.chat.completions.create(
+                model=GROQ_MODEL,
+                messages=[{"role": "user", "content": prompt}],
+                temperature=0.4,
+            )
+        except RateLimitError as e:
+            raise RuntimeError("LLM_RATE_LIMIT")
 
         raw_content = response.choices[0].message.content
 

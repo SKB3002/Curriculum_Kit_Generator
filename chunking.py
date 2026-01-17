@@ -1,65 +1,99 @@
 # chunking.py
 from typing import List
-from config import (
-    WORD_COUNT_FOR_4_LESSONS,
-    WORD_COUNT_FOR_5_LESSONS,
-)
+from groq import Groq
+from groq import RateLimitError
+import os
+import json
 
-def determine_lesson_count(word_count: int) -> int:
-    """
-    Heuristic for number of lesson plans.
-    """
-    if word_count <= WORD_COUNT_FOR_4_LESSONS:
-        return 4
-    elif word_count <= WORD_COUNT_FOR_5_LESSONS:
-        return 5
-    else:
-        return 6
+GROQ_API_KEY = "gsk_dWatyTslyvvBKGEozKJRWGdyb3FYvtGicALZRYrYgaDmz553h"
+GROQ_MODEL1 = "meta-llama/llama-guard-4-12b"
 
 
 def split_text_into_paragraphs(text: str) -> List[str]:
-    """
-    Splits text into rough paragraphs using blank lines.
-    """
-    paragraphs = [p.strip() for p in text.split("\n\n") if p.strip()]
-    return paragraphs
+    return [p.strip() for p in text.split("\n\n") if p.strip()]
 
 
-def split_into_lesson_chunks(text: str, num_lessons: int) -> List[str]:
+def determine_lesson_count(word_count: int) -> int:
     """
-    Splits text into num_lessons chunks, keeping paragraphs intact.
-    Approximate equal total word count per chunk.
+    Lesson count is now driven by number of topics.
+    This function exists only for backward compatibility.
     """
+    raise RuntimeError(
+        "Lesson count should be determined by number of topics in semantic chunking mode."
+    )
+
+
+def semantic_chunk_by_topics(
+    text: str,
+    topics: List[str],
+) -> List[str]:
+    """
+    Returns one text chunk per topic, aligned strictly to topic meaning.
+    """
+    if not GROQ_API_KEY:
+        raise ValueError("GROQ_API_KEY not set")
+
+    client = Groq(api_key=GROQ_API_KEY)
     paragraphs = split_text_into_paragraphs(text)
-    if not paragraphs:
-        return [text]
-
-    total_words = sum(len(p.split()) for p in paragraphs)
-    target_words_per_chunk = max(1, total_words // num_lessons)
 
     chunks = []
-    current_chunk = []
-    current_count = 0
-    remaining_chunks = num_lessons
 
-    for i, p in enumerate(paragraphs):
-        p_words = len(p.split())
-        # If adding this paragraph would exceed target and we still have chunks left,
-        # start a new chunk
-        if (current_count + p_words > target_words_per_chunk) and (remaining_chunks > 1):
-            chunks.append("\n\n".join(current_chunk).strip())
-            remaining_chunks -= 1
-            current_chunk = [p]
-            current_count = p_words
-        else:
-            current_chunk.append(p)
-            current_count += p_words
+    for topic in topics:
+        prompt = f"""
+You are given textbook paragraphs and a topic.
 
-    if current_chunk:
-        chunks.append("\n\n".join(current_chunk).strip())
+Select ONLY the paragraphs that are directly relevant to the topic.
+Return them as a JSON list of strings.
+If nothing is relevant, return an empty list.
 
-    # If for some reason we have fewer chunks than requested, pad last ones
-    while len(chunks) < num_lessons:
-        chunks.append("")
+Topic:
+"{topic}"
+
+Paragraphs:
+{json.dumps(paragraphs, indent=2)}
+
+Rules:
+- Do not paraphrase
+- Do not explain
+- Do not add new text
+- Output valid JSON only
+"""
+     
+        try:
+            response = client.chat.completions.create(
+                model=GROQ_MODEL1,
+                messages=[{"role": "user", "content": prompt}],
+                temperature=0.0,
+            )
+  
+        except RateLimitError:
+            raise RuntimeError("LLM_RATE_LIMIT")
+
+        raw = response.choices[0].message.content.strip()
+
+        try:
+            selected_paragraphs = json.loads(raw)
+        except json.JSONDecodeError:
+            # fail safe: no paragraphs
+            selected_paragraphs = []
+
+        chunk_text = "\n\n".join(selected_paragraphs).strip()
+        chunks.append(chunk_text)
 
     return chunks
+
+
+def split_into_lesson_chunks(
+    text: str,
+    num_lessons: int,
+    topic_names: List[str],
+) -> List[str]:
+    """
+    Entry point used by generator.py
+    """
+    if num_lessons != len(topic_names):
+        raise ValueError(
+            f"Number of lessons ({num_lessons}) must match number of topics ({len(topic_names)})"
+        )
+
+    return semantic_chunk_by_topics(text, topic_names)

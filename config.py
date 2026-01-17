@@ -4,8 +4,8 @@ import os
 # -----------------------------
 # LLM CONFIG
 # -----------------------------
-GROQ_API_KEY = os.getenv("GROQ_API_KEY", "")
-GROQ_MODEL = "openai/gpt-oss-safeguard-20b"
+GROQ_API_KEY = "gsk_dWatyTslyvvBKGEozKJRWGdyb3FYvtGicALZRYrYgaDmz553h"
+GROQ_MODEL = "openai/gpt-oss-20b"
 
 
 # -----------------------------
